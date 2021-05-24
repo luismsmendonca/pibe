@@ -53,6 +53,34 @@ def test_methods():
     assert call_mock.called
 
 
+def test_match_methods():
+    route = pibe.Router()
+
+    get_mock = MagicMock(return_value=Response())
+    route.get("/foo/")(get_mock)
+
+    post_mock = MagicMock(return_value=Response())
+    route.post("/foo/")(post_mock)
+
+    app = TestApp(route.application)
+
+    resp = app.put("/foo/", expect_errors=True)
+    assert resp.status_code == 405
+    assert get_mock.called is False
+    assert post_mock.called is False
+
+    app.get("/foo/")
+    assert get_mock.called
+    assert post_mock.called is False
+
+    # reset mock
+    get_mock.reset_mock()
+
+    app.post("/foo/")
+    assert get_mock.called is False
+    assert post_mock.called
+
+
 def test_method_call():
     route = pibe.Router()
 

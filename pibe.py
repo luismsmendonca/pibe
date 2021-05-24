@@ -77,6 +77,7 @@ class Router(list):
 
     @wsgify
     def application(self, req):
+        uri_matched = False
         for (regex, resource, methods) in self:
             path_info = (
                 "{}/".format(req.path_info)
@@ -85,9 +86,13 @@ class Router(list):
             )
             match = regex.match(path_info)
             if match:
+                uri_matched = True
                 if req.method in methods:
                     return resource(req, **match.groupdict())
-                raise exc.HTTPMethodNotAllowed
+
+        # we got a match in uri but not in method
+        if uri_matched:
+            raise exc.HTTPMethodNotAllowed
         raise exc.HTTPNotFound
 
     def add(self, pattern, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]):

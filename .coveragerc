@@ -2,6 +2,6 @@
 omit =
   venv/*
   */tests/*
-  manage.py
+  setup.py
   conftest.py
   test_*
