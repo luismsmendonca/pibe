@@ -1,0 +1,7 @@
+[run]
+omit =
+  venv/*
+  */tests/*
+  manage.py
+  conftest.py
+  test_*
