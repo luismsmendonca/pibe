@@ -70,9 +70,22 @@ def template_to_regex(template):
     return regex
 
 
+def template_to_string(template):
+    string = ""
+    last_pos = 0
+    for match in var_regex.finditer(template):
+        string += re.escape(template[last_pos : match.start()])
+        var_name = match.group(1)
+        string += "{{{}}}".format(var_name)
+        last_pos = match.end()
+    string += re.escape(template[last_pos:])
+    return string
+
+
 class Router(list):
     def __init__(self, append_slash=True):
         self.append_slash = append_slash
+        self.names = dict()
         super().__init__()
 
     @wsgify
@@ -95,29 +108,35 @@ class Router(list):
             raise exc.HTTPMethodNotAllowed
         raise exc.HTTPNotFound
 
-    def add(self, pattern, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]):
+    def add(self, pattern, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"], name=None):
+        if name:
+            self.names[name] = template_to_string(pattern)
+
         def func_decorator(func):
             self.append((re.compile(template_to_regex(pattern)), func, methods))
             return func
         return func_decorator
 
-    def head(self, pattern):
-        return self.add(pattern, methods=["HEAD"])
+    def head(self, pattern, name=None):
+        return self.add(pattern, methods=["HEAD"], name=name)
 
-    def get(self, pattern):
-        return self.add(pattern, methods=["GET"])
+    def get(self, pattern, name=None):
+        return self.add(pattern, methods=["GET"], name=name)
 
-    def post(self, pattern):
-        return self.add(pattern, methods=["POST"])
+    def post(self, pattern, name=None):
+        return self.add(pattern, methods=["POST"], name=name)
 
-    def put(self, pattern):
-        return self.add(pattern, methods=["PUT"])
+    def put(self, pattern, name=None):
+        return self.add(pattern, methods=["PUT"], name=name)
 
-    def patch(self, pattern):
-        return self.add(pattern, methods=["PATCH"])
+    def patch(self, pattern, name=None):
+        return self.add(pattern, methods=["PATCH"], name=name)
 
-    def delete(self, pattern):
-        return self.add(pattern, methods=["DELETE"])
+    def delete(self, pattern, name=None):
+        return self.add(pattern, methods=["DELETE"], name=name)
 
-    def __call__(self, pattern, methods):
-        return self.add(pattern, methods)
+    def __call__(self, pattern, methods, name=None):
+        return self.add(pattern, methods, name=name)
+
+    def reverse(self, name, *args, **kwargs):
+        return self.names.get(name, "#unknown").format(*args, **kwargs)

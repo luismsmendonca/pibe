@@ -69,6 +69,21 @@ def put_foo(req, foo_id):
   return Response("{}".format(foo_id))
 ```
 
+You can also use name routes:
+
+```
+@route("/foo/<foo_id:int>/", methods=["GET", "PUT", "POST"], name="foo")
+def foo_endpoint(req, foo_id):
+  return Response("{}".format(foo_id))
+```
+
+and then you can call the revser method:
+
+```
+url=route.reverse("foo", foo_id=1)
+```
+
+this will yield `/foo/1/`
 
 The available converters are:
 

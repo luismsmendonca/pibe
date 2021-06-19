@@ -182,3 +182,22 @@ def test_email_converter():
     assert len(resource_mock.call_args) == 2
     assert "email" in resource_mock.call_args[1]
     assert resource_mock.call_args[1]["email"] == "foo@bar.com"
+
+
+def test_named_routes():
+    route = pibe.Router()
+
+    get_mock = MagicMock(return_value=Response())
+    route.get("/foo/", name="foo")(get_mock)
+
+    assert route.reverse("foo") == "/foo/"
+
+    get_mock = MagicMock(return_value=Response())
+    route.get("/bar/<bar_id>/", name="bar")(get_mock)
+
+    assert route.reverse("bar", bar_id=1) == "/bar/1/"
+
+    get_mock = MagicMock(return_value=Response())
+    route.get("/baaz/<baaz_id>/fooz/<foozz_id>/", name="baaz")(get_mock)
+
+    assert route.reverse("baaz", baaz_id=11, foozz_id=22) == "/baaz/11/fooz/22/"
