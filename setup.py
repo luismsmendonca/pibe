@@ -15,7 +15,7 @@ setup(
     author="Luis Mendonca",
     author_email="luismsmendonca@gmail.com",
     url="https://github.com/luismsmendonca/pibe",
-    download_url="https://github.com/luismsmendonca/pibe/archive/refs/tags/v0.3.tar.gz",
+    download_url="https://github.com/luismsmendonca/pibe/archive/refs/tags/v0.4.tar.gz",
     keywords=["webob", "router"],
     install_requires=[
         "webob",
