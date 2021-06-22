@@ -74,11 +74,11 @@ def template_to_string(template):
     string = ""
     last_pos = 0
     for match in var_regex.finditer(template):
-        string += re.escape(template[last_pos : match.start()])
+        string += template[last_pos : match.start()]
         var_name = match.group(1)
         string += "{{{}}}".format(var_name)
         last_pos = match.end()
-    string += re.escape(template[last_pos:])
+    string += template[last_pos:]
     return string
 
 

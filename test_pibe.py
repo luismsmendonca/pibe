@@ -187,17 +187,17 @@ def test_email_converter():
 def test_named_routes():
     route = pibe.Router()
 
-    get_mock = MagicMock(return_value=Response())
-    route.get("/foo/", name="foo")(get_mock)
-
+    route.get("/foo/", name="foo")(MagicMock(return_value=Response()))
     assert route.reverse("foo") == "/foo/"
 
-    get_mock = MagicMock(return_value=Response())
-    route.get("/bar/<bar_id>/", name="bar")(get_mock)
-
+    route.get("/bar/<bar_id>/", name="bar")(MagicMock(return_value=Response()))
     assert route.reverse("bar", bar_id=1) == "/bar/1/"
 
-    get_mock = MagicMock(return_value=Response())
-    route.get("/baaz/<baaz_id>/fooz/<foozz_id>/", name="baaz")(get_mock)
-
+    route.get("/baaz/<baaz_id>/fooz/<foozz_id>/", name="baaz")(MagicMock(return_value=Response()))
     assert route.reverse("baaz", baaz_id=11, foozz_id=22) == "/baaz/11/fooz/22/"
+
+    route.get("/foo-bar/", name="foo-bar")(MagicMock(return_value=Response()))
+    assert route.reverse("foo-bar") == "/foo-bar/"
+
+    route.get("/fooz-baaz/<baaz_id>/dummy/", name="fooz-baaz")(MagicMock(return_value=Response()))
+    assert route.reverse("fooz-baaz", baaz_id=1) == "/fooz-baaz/1/dummy/"
