@@ -77,7 +77,7 @@ def foo_endpoint(req, foo_id):
   return Response("{}".format(foo_id))
 ```
 
-and then you can call the revser method:
+and then you can call the reverse method:
 
 ```
 url=route.reverse("foo", foo_id=1)
@@ -98,12 +98,46 @@ The available converters are:
   - `any` - Matches *any* of the given strings. Example `/foo/<action:any(BUY,SELL,HODL)>/`
   - `email` - Matches an email
   - `re` - Pass on any given regexp.
+  - `path` - matches a path (forward slashes and file).
+  - `uuid` - matches a uuid string.
+
+any keyword argument passed after will be set as an attribute of the request:
+
+```
+@route.get("/foo/<foo_id:int>/", foo_bar=1)
+def foo_endpoint(req, foo_id):
+  req.foo_bar == 1 // True
+  ...
+```
 
 To instantiate the application use:
 
 ```
 router.application
 ```
+
+Middlewares are written as a generator (pytest style):
+
+```
+def my_middleware(req):
+    // before calling endpoint
+    yield
+    // after calling endpoint
+    yield
+```
+
+the first yield is mandatory the second can be omitted. if any of these yields
+a response, that response will be returned instead of the function. For the after
+calling endpoint part, one can get the response like so:
+
+```
+def my_middleware(req):
+    // before calling endpoint
+    resp = yield
+    // do something with the response
+    // yield or not
+```
+
 
 
 ## License

@@ -46,6 +46,8 @@ regex_fn = {
     "username": "[\w.@+-]+",
     "email": "(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}",
     "path": "[^/].*?",
+    "uuid": "[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-"
+            "[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}",
     "int": int_converter,
     "float": float_converter,
     "any": lambda args: "|".join(parse_args(args)),
