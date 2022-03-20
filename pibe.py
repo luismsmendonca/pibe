@@ -23,17 +23,18 @@ parse_kwargs = lambda args, **defaults: dict(
 )
 
 
-def int_converter(args):
-    kwargs = parse_kwargs(args) if args else {}
-    length_str = "{{{}}}".format(kwargs["length"]) if kwargs.get("length") else "+"
-    signed_str = "[-+]?" if bool(kwargs.get("signed")) else ""
-    return "{}\d{}".format(signed_str, length_str)
+def int_converter(**kwargs):
+    signed = kwargs.get("signed") in ["true", "1"]
+    length = kwargs.get("length")
+    signed_str = "[-+]?" if signed else ""
+    length_str = "{{{}}}".format(length) if length else "+"
+    return f"{signed_str}\d{length_str}"
 
 
-def float_converter(args):
-    kwargs = parse_kwargs(args) if args else {}
-    signed_str = "[-+]?" if kwargs.get("signed") in ["true", "1"] else ""
-    return "{}[0-9]*\.?[0-9]+".format(signed_str)
+def float_converter(**kwargs):
+    signed = kwargs.get("signed") in ["true", "1"]
+    signed_str = "[-+]?" if signed else ""
+    return f"{signed_str}[0-9]*\.?[0-9]+"
 
 
 regex_fn = {
@@ -50,8 +51,8 @@ regex_fn = {
             "[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}",
     "int": int_converter,
     "float": float_converter,
-    "any": lambda args: "|".join(parse_args(args)),
-    "re": lambda args: args,
+    "any": lambda *a: "|".join(a),
+    "re": lambda regexp: regexp,
 }
 
 
@@ -62,12 +63,16 @@ def template_to_regex(template):
         regex += re.escape(template[last_pos : match.start()])
         var_name = match.group(1)
         kind = match.group(2) or "default"
-        args = match.group(4)
+        a_kw = match.group(4) or ""
+        # import pdb; pdb.set_trace()
+        args = [x.strip() for x in a_kw.split(",") if len(x.split("="))==1]
+        kwargs = dict([[x.strip() for x in x.split("=")] for x in a_kw.split(",") if len(x.split("="))==2])
+
         if kind not in regex_fn:
             raise KeyError("Unknown kind {}".format(kind))
         expr = "(?P<%s>%s)" % (
             var_name,
-            regex_fn[kind](args) if callable(regex_fn[kind]) else regex_fn[kind])
+            regex_fn[kind](*args, **kwargs) if callable(regex_fn[kind]) else regex_fn[kind])
         regex += expr
         last_pos = match.end()
     regex += re.escape(template[last_pos:])
