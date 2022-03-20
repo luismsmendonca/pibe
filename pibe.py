@@ -37,17 +37,18 @@ def float_converter(args):
 
 
 regex_fn = {
-    "default": lambda args: "[^/]+",
-    "str": lambda args: "\w+",
+    "default": "[^/]+",
+    "str": "\w+",
+    "year": "\d{4}",
+    "month": "\d|1[0-2]",
+    "day": "[0-2]\d|3[01]",
+    "slug": "[\w-]+",
+    "username": "[\w.@+-]+",
+    "email": "(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}",
+    "path": "[^/].*?",
     "int": int_converter,
     "float": float_converter,
-    "year": lambda args: "\d{4}",
-    "month": lambda args: "\d|1[0-2]",
-    "day": lambda args: "[0-2]\d|3[01]",
-    "slug": lambda args: "[\w-]+",
-    "username": lambda args: "[\w.@+-]+",
-    "any": lambda args: "[{}]".format(parse_args(args)),
-    "email": lambda args: "(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}",
+    "any": lambda args: "|".join(parse_args(args)),
     "re": lambda args: args,
 }
 
@@ -62,7 +63,9 @@ def template_to_regex(template):
         args = match.group(4)
         if kind not in regex_fn:
             raise KeyError("Unknown kind {}".format(kind))
-        expr = "(?P<%s>%s)" % (var_name, regex_fn[kind](args))
+        expr = "(?P<%s>%s)" % (
+            var_name,
+            regex_fn[kind](args) if callable(regex_fn[kind]) else regex_fn[kind])
         regex += expr
         last_pos = match.end()
     regex += re.escape(template[last_pos:])
@@ -83,60 +86,91 @@ def template_to_string(template):
 
 
 class Router(list):
-    def __init__(self, append_slash=True):
-        self.append_slash = append_slash
+    def __init__(self, middleware=None):
         self.names = dict()
+        self.middleware = middleware or []
         super().__init__()
 
-    @wsgify
-    def application(self, req):
+    def resolve(self, req):
         uri_matched = False
-        for (regex, resource, methods) in self:
-            path_info = (
-                "{}/".format(req.path_info)
-                if (req.path_info[-1] != "/") and self.append_slash
-                else req.path_info
-            )
-            match = regex.match(path_info)
+        for (regex, resource, methods, opts) in self:
+            match = regex.match(req.path_info)
             if match:
                 uri_matched = True
                 if req.method in methods:
-                    return resource(req, **match.groupdict())
+                    return (resource, match.groupdict(), opts)
 
         # we got a match in uri but not in method
         if uri_matched:
             raise exc.HTTPMethodNotAllowed
         raise exc.HTTPNotFound
 
-    def add(self, pattern, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"], name=None):
+
+    @wsgify
+    def application(self, req):
+        (func, kwargs, opts) = self.resolve(req)
+        if opts:
+            for key, value in opts.items():
+                setattr(req, key, value)
+
+        # build the middleware
+        mw_fns = [mw(req) for mw in self.middleware]
+
+        # call the first leg
+        for mw in mw_fns:
+            interrupt_resp = next(mw)
+            if interrupt_resp:
+                return interrupt_resp
+
+        # call the function
+        resp = func(req, **kwargs)
+
+        # reverse the middleware
+        mw_fns.reverse()
+
+        # call the last leg of the middleware
+        for mw in mw_fns:
+            try:
+                interrupt_resp = mw.send(resp)
+            except StopIteration:
+                interrupt_resp = None
+            if interrupt_resp:
+                return interrupt_resp
+
+        # finally return response
+        return resp
+
+    def add(self, pattern, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], name=None, **opts):
         if name:
             self.names[name] = template_to_string(pattern)
-
         def func_decorator(func):
-            self.append((re.compile(template_to_regex(pattern)), func, methods))
+            self.append((re.compile(template_to_regex(pattern)), func, methods, opts))
             return func
         return func_decorator
 
-    def head(self, pattern, name=None):
-        return self.add(pattern, methods=["HEAD"], name=name)
+    def head(self, pattern, name=None, **opts):
+        return self.add(pattern, methods=["HEAD"], name=name, **opts)
 
-    def get(self, pattern, name=None):
-        return self.add(pattern, methods=["GET"], name=name)
+    def get(self, pattern, name=None, **opts):
+        return self.add(pattern, methods=["GET"], name=name, **opts)
 
-    def post(self, pattern, name=None):
-        return self.add(pattern, methods=["POST"], name=name)
+    def post(self, pattern, name=None, **opts):
+        return self.add(pattern, methods=["POST"], name=name, **opts)
 
-    def put(self, pattern, name=None):
-        return self.add(pattern, methods=["PUT"], name=name)
+    def put(self, pattern, name=None, **opts):
+        return self.add(pattern, methods=["PUT"], name=name, **opts)
 
-    def patch(self, pattern, name=None):
-        return self.add(pattern, methods=["PATCH"], name=name)
+    def patch(self, pattern, name=None, **opts):
+        return self.add(pattern, methods=["PATCH"], name=name, **opts)
 
-    def delete(self, pattern, name=None):
-        return self.add(pattern, methods=["DELETE"], name=name)
+    def delete(self, pattern, name=None, **opts):
+        return self.add(pattern, methods=["DELETE"], name=name, **opts)
 
-    def __call__(self, pattern, methods, name=None):
-        return self.add(pattern, methods, name=name)
+    def options(self, pattern, name=None, **opts):
+        return self.add(pattern, methods=["OPTIONS"], name=name, **opts)
+
+    def __call__(self, pattern, methods, name=None, **opts):
+        return self.add(pattern, methods, name=name, **opts)
 
     def reverse(self, name, *args, **kwargs):
         return self.names.get(name, "#unknown").format(*args, **kwargs)
