@@ -63,11 +63,9 @@ def template_to_regex(template):
         regex += re.escape(template[last_pos : match.start()])
         var_name = match.group(1)
         kind = match.group(2) or "default"
-        a_kw = match.group(4) or ""
-        # import pdb; pdb.set_trace()
-        args = [x.strip() for x in a_kw.split(",") if len(x.split("="))==1]
-        kwargs = dict([[x.strip() for x in x.split("=")] for x in a_kw.split(",") if len(x.split("="))==2])
-
+        a_kw = match.group(4)
+        args = [x.strip() for x in a_kw.split(",") if len(x.split("="))==1] if a_kw else ()
+        kwargs = dict([[x.strip() for x in x.split("=")] for x in a_kw.split(",") if len(x.split("="))==2]) if a_kw else {}
         if kind not in regex_fn:
             raise KeyError("Unknown kind {}".format(kind))
         expr = "(?P<%s>%s)" % (
