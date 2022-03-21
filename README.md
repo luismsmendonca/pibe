@@ -113,7 +113,9 @@ def foo_endpoint(req, foo_id):
 To instantiate the application use:
 
 ```
-router.application
+route = pibe.Router()
+(...)
+route.application
 ```
 
 Middlewares are written as a generator (pytest style):
@@ -138,7 +140,24 @@ def my_middleware(req):
     // yield or not
 ```
 
+Middleware can be initialized when instantiating the router class
 
+
+```
+route = pibe.Router(middlewares=[my_mwiddleware1, my_middleware2])
+```
+
+or can be set at later stage
+
+```
+route.middlewares = [my_middleware1, my_middleware2]
+```
+
+middleware call is done in a pyramid fashion. i.e.:
+
+```
+my_middleware1 > my_middleware2 > dispatch > my_middleware2 > my_middleware1
+```
 
 ## License
 
