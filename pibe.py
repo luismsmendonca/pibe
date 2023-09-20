@@ -28,30 +28,30 @@ def int_converter(**kwargs):
     length = kwargs.get("length")
     signed_str = "[-+]?" if signed else ""
     length_str = "{{{}}}".format(length) if length else "+"
-    return f"{signed_str}\d{length_str}"
+    return rf"{signed_str}\d{length_str}"
 
 
 def float_converter(**kwargs):
     signed = kwargs.get("signed") in ["true", "1"]
     signed_str = "[-+]?" if signed else ""
-    return f"{signed_str}[0-9]*\.?[0-9]+"
+    return rf"{signed_str}[0-9]*\.?[0-9]+"
 
 
 regex_fn = {
-    "default": "[^/]+",
-    "str": "\w+",
-    "year": "\d{4}",
-    "month": "\d|1[0-2]",
-    "day": "[0-2]\d|3[01]",
-    "slug": "[\w-]+",
-    "username": "[\w.@+-]+",
-    "email": "(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}",
-    "path": "[^/].*?",
-    "uuid": "[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-"
+    "default": r"[^/]+",
+    "str": r"\w+",
+    "year": r"\d{4}",
+    "month": r"\d|1[0-2]",
+    "day": r"[0-2]\d|3[01]",
+    "slug": r"[\w-]+",
+    "username": r"[\w.@+-]+",
+    "email": r"(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}",
+    "path": r"[^/].*?",
+    "uuid": r"[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-"
             "[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}",
     "int": int_converter,
     "float": float_converter,
-    "any": lambda *a: "|".join(a),
+    "any": lambda *a: r"|".join(a),
     "re": lambda regexp: regexp,
 }
 
@@ -110,22 +110,21 @@ class Router(list):
             raise exc.HTTPMethodNotAllowed
         raise exc.HTTPNotFound
 
+    def response_wrapper(self, resp, **opts):
+        return resp
 
     @wsgify
     def application(self, req):
         (func, kwargs, opts) = self.resolve(req)
-        if opts:
-            for key, value in opts.items():
-                setattr(req, key, value)
 
         # build the middleware
-        mw_fns = [mw(req) for mw in self.middleware]
+        mw_fns = [mw(req, **opts) for mw in self.middleware]
 
         # call the first leg
         for mw in mw_fns:
             interrupt_resp = next(mw)
             if interrupt_resp:
-                return interrupt_resp
+                return self.response_wrapper(interrupt_resp, **opts)
 
         # call the function
         resp = func(req, **kwargs)
@@ -140,10 +139,10 @@ class Router(list):
             except StopIteration:
                 interrupt_resp = None
             if interrupt_resp:
-                return interrupt_resp
+                return self.response_wrapper(interrupt_resp, **opts)
 
         # finally return response
-        return resp
+        return self.response_wrapper(resp, **opts)
 
     def add(self, pattern, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], name=None, **opts):
         if name:
@@ -179,3 +178,12 @@ class Router(list):
 
     def reverse(self, name, *args, **kwargs):
         return self.names.get(name, "#unknown").format(*args, **kwargs)
+
+
+class JSONRouter(Router):
+    def response_wrapper(self, resp, **opts):
+        if type(resp) == Response:
+            return resp
+        return Response(json_body=resp,
+            content_type="application/json",
+            status=opts.get("status", 200))

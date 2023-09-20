@@ -201,3 +201,15 @@ def test_named_routes():
 
     route.get("/fooz-baaz/<baaz_id>/dummy/", name="fooz-baaz")(MagicMock(return_value=Response()))
     assert route.reverse("fooz-baaz", baaz_id=1) == "/fooz-baaz/1/dummy/"
+
+
+def test_json_router():
+    route = pibe.JSONRouter()
+    route.get("/")(MagicMock(return_value={"foo": "bar"}))
+
+    app = TestApp(route.application)
+
+    resp = app.get("/")
+    assert resp.status_code == 200
+    assert resp.content_type == 'application/json'
+    assert resp.json == {"foo": "bar"}
