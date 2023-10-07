@@ -101,14 +101,6 @@ The available converters are:
   - `path` - matches a path (forward slashes and file).
   - `uuid` - matches a uuid string.
 
-any keyword argument passed after will be set as an attribute of the request:
-
-```
-@route.get("/foo/<foo_id:int>/", foo_bar=1)
-def foo_endpoint(req, foo_id):
-  req.foo_bar == 1 // True
-  ...
-```
 
 To instantiate the application use:
 
@@ -118,39 +110,51 @@ route = pibe.Router()
 route.application
 ```
 
-Middlewares are written as a generator (pytest style):
+Middlewares are written as a generator (pytest style) or as regular function:
 
 ```
-def my_middleware(req):
+def my_middleware(req, **opts):
     // before calling endpoint
     yield
     // after calling endpoint
-    yield
 ```
 
-the first yield is mandatory the second can be omitted. if any of these yields
-a response, that response will be returned instead of the function. For the after
-calling endpoint part, one can get the response like so:
-
 ```
-def my_middleware(req):
+def my_middleware(req, **opts):
     // before calling endpoint
     resp = yield
     // do something with the response
     // yield or not
 ```
 
+```
+def my_middleware(req, **opts):
+    // before calling endpoint
+    req.environ["foo"] = "bar"
+
+```
+
 Middleware can be initialized when instantiating the router class
 
 
 ```
-route = pibe.Router(middlewares=[my_mwiddleware1, my_middleware2])
+route = pibe.Router(middlewares=[my_middleware1, my_middleware2])
 ```
 
 or can be set at later stage
 
 ```
 route.middlewares = [my_middleware1, my_middleware2]
+```
+
+or with a decorator:
+
+```
+@route.middleware()
+def my_middleware(req, **opts):
+    // before calling endpoint
+    req.environ["fooz"] = "baaz"
+
 ```
 
 middleware call is done in a pyramid fashion. i.e.:

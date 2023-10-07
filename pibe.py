@@ -1,4 +1,5 @@
 import re
+import inspect
 from functools import wraps
 from webob import Request, Response, exc
 from webob.dec import wsgify
@@ -90,10 +91,22 @@ def template_to_string(template):
     return string
 
 
+class Middleware(list):
+    def __init__(self, middleware=None):
+        if middleware:
+            self.extend(middleware)
+
+    def __call__(self):
+        def func_decorator(func):
+            self.append(func)
+            return func
+        return func_decorator
+
+
 class Router(list):
     def __init__(self, middleware=None):
         self.names = dict()
-        self.middleware = middleware or []
+        self.middleware = Middleware(middleware)
         super().__init__()
 
     def resolve(self, req):
@@ -118,28 +131,25 @@ class Router(list):
         (func, kwargs, opts) = self.resolve(req)
 
         # build the middleware
-        mw_fns = [mw(req, **opts) for mw in self.middleware]
+        gen_mw = [mw(req, **opts) for mw in self.middleware if inspect.isgeneratorfunction(mw)]
+        func_mw = [mw for mw in self.middleware if not inspect.isgeneratorfunction(mw)]
 
         # call the first leg
-        for mw in mw_fns:
-            interrupt_resp = next(mw)
-            if interrupt_resp:
-                return self.response_wrapper(interrupt_resp, **opts)
+        for mw in func_mw:
+            mw(req, **opts)
+
+        for mw in gen_mw:
+            next(mw)
 
         # call the function
         resp = func(req, **kwargs)
 
         # reverse the middleware
-        mw_fns.reverse()
+        gen_mw.reverse()
 
-        # call the last leg of the middleware
-        for mw in mw_fns:
-            try:
-                interrupt_resp = mw.send(resp)
-            except StopIteration:
-                interrupt_resp = None
-            if interrupt_resp:
-                return self.response_wrapper(interrupt_resp, **opts)
+        # call the second leg of the middleware
+        for mw in gen_mw:
+            mw.send(resp)
 
         # finally return response
         return self.response_wrapper(resp, **opts)

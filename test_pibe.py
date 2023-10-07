@@ -2,7 +2,7 @@ import pytest
 from webtest import TestApp
 from unittest.mock import MagicMock
 import pibe
-from webob import Request, Response
+from webob import Request, Response, exc
 
 def test_methods():
     route = pibe.Router()
@@ -213,3 +213,75 @@ def test_json_router():
     assert resp.status_code == 200
     assert resp.content_type == 'application/json'
     assert resp.json == {"foo": "bar"}
+
+
+def test_middleware():
+
+    route = pibe.Router()
+
+    @route.middleware()
+    def middleware1(req, **opts):
+        if req.path == "/foo":
+            assert "foo" in opts
+            assert "bar" not in opts
+
+        elif req.path == "/bar":
+            assert "bar" in opts
+            assert "foo" not in opts
+
+        elif req.path == "/dummy":
+            assert "bar" not in opts
+            assert "foo" not in opts
+
+        else:
+            assert 0
+
+    assert len(route.middleware) == 1
+    route.get("/foo", foo=True)(MagicMock(return_value="ok"))
+    route.get("/bar", bar=True)(MagicMock(return_value="ok"))
+    route.get("/dummy")(MagicMock(return_value="ok"))
+    app = TestApp(route.application)
+
+    resp = app.get("/foo")
+    assert resp.status_code == 200
+    assert resp.text == "ok"
+
+    resp = app.get("/bar")
+    assert resp.status_code == 200
+    assert resp.text == "ok"
+
+    resp = app.get("/dummy")
+    assert resp.status_code == 200
+    assert resp.text == "ok"
+
+def test_middleware2():
+
+    route = pibe.Router()
+
+    @route.middleware()
+    def middleware_gen(req, **opts):
+        raise exc.HTTPNotFound
+        yield
+
+    assert len(route.middleware) == 1
+    route.get("/", foo=True)(MagicMock(return_value="ok"))
+    app = TestApp(route.application)
+
+    resp = app.get("/", expect_errors=True)
+    assert resp.status_code == 404
+
+def test_middleware3():
+
+    route = pibe.Router()
+
+    @route.middleware()
+    def middleware_gen(req, **opts):
+        yield
+        raise exc.HTTPNotFound
+
+    assert len(route.middleware) == 1
+    route.get("/", foo=True)(MagicMock(return_value="ok"))
+    app = TestApp(route.application)
+
+    resp = app.get("/", expect_errors=True)
+    assert resp.status_code == 404
