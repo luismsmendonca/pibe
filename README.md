@@ -154,7 +154,8 @@ or with a decorator:
 def my_middleware(req, **opts):
     // before calling endpoint
     req.environ["fooz"] = "baaz"
-
+    yield
+    
 ```
 
 middleware call is done in a pyramid fashion. i.e.:
