@@ -106,6 +106,7 @@ class Middleware(list):
 class Router(list):
     def __init__(self, middleware=None):
         self.names = dict()
+        self.error_handlers = list()
         self.middleware = Middleware(middleware)
         super().__init__()
 
@@ -126,6 +127,16 @@ class Router(list):
     def response_wrapper(self, resp, **opts):
         return resp
 
+    def error_handler(self):
+        def wrapper(func):
+            self.error_handlers.append(func)
+            return func
+        return wrapper
+
+    def exec_error_handlers(self, *args, **kwargs):
+        for func in self.error_handlers:
+            func(*args, **kwargs)
+
     @wsgify
     def application(self, req):
         (func, kwargs, opts) = self.resolve(req)
@@ -142,7 +153,11 @@ class Router(list):
             next(mw)
 
         # call the function
-        resp = func(req, **kwargs)
+        try:
+            resp = func(req, **kwargs)
+        except Exception as err:
+            self.exec_error_handlers(req, err)
+            raise
 
         # reverse the middleware
         gen_mw.reverse()
