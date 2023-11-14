@@ -112,7 +112,7 @@ class Router(list):
 
     def resolve(self, req):
         uri_matched = False
-        for (regex, resource, methods, opts) in self:
+        for (regex, resource, methods, pattern, opts) in self:
             match = regex.match(req.path_info)
             if match:
                 uri_matched = True
@@ -173,7 +173,7 @@ class Router(list):
         if name:
             self.names[name] = template_to_string(pattern)
         def func_decorator(func):
-            self.append((re.compile(template_to_regex(pattern)), func, methods, opts))
+            self.append((re.compile(template_to_regex(pattern)), func, methods, pattern, opts))
             return func
         return func_decorator
 
