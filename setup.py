@@ -8,7 +8,7 @@ testing_extras = [
 
 setup(
     name="pibe",
-    py_modules=['pibe'],
+    py_modules=['pibe', 'pibe_docs'],
     version="0.10",
     license="MIT",
     description="pibe is a webob router.",
