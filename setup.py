@@ -9,13 +9,13 @@ testing_extras = [
 setup(
     name="pibe",
     py_modules=['pibe'],
-    version="0.9",
+    version="0.10",
     license="MIT",
     description="pibe is a webob router.",
     author="Luis Mendonca",
     author_email="luismsmendonca@gmail.com",
     url="https://github.com/luismsmendonca/pibe",
-    download_url="https://github.com/luismsmendonca/pibe/archive/refs/tags/v0.6.tar.gz",
+    download_url="https://github.com/luismsmendonca/pibe/archive/refs/tags/v0.10.tar.gz",
     keywords=["webob", "router"],
     install_requires=[
         "webob",
