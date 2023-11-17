@@ -131,5 +131,6 @@ dmypy.json
 manage.py
 
 docs/
+docs_html/
 
 app.py

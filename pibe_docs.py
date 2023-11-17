@@ -4,6 +4,49 @@ import markdown
 import textwrap
 from jinja2 import Environment, BaseLoader
 
+MARKDOWN_CSS = """
+.markdown h1 {font-size: 150%; margin-bottom: 10px;}
+.markdown h2 {font-size: 140%; margin-bottom: 5px;}
+.markdown h3 {font-size: 130%; margin-bottom: 5px;}
+.markdown h4 {font-size: 110%; margin-bottom: 5px;}
+.markdown pre {margin-top: 10px; margin-bottom: 10px;}
+.markdown ul {
+    list-style-type: circle;
+        margin-left: 20px;
+        padding: 0;
+}
+"""
+
+EXTRA_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
+        {{ MARKDOWN_CSS }}
+    </style>
+
+</head>
+<body class="bg-gray-50 leading-normal tracking-normal">
+    <!-- Content -->
+    <div class="container mx-auto mt-4 max-w-4xl">
+        <div class="markdown">
+            {{ content }}
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 DOC_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,20 +59,11 @@ DOC_TEMPLATE = """<!DOCTYPE html>
 
     <title>{{ title }}</title>
     <style>
-    body {
-        font-family: 'Montserrat', sans-serif;
-    }
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
 
-    .endpoint-documentation h1 {font-size: 150%; margin-bottom: 10px;}
-    .endpoint-documentation h2 {font-size: 140%; margin-bottom: 5px;}
-    .endpoint-documentation h3 {font-size: 130%; margin-bottom: 5px;}
-    .endpoint-documentation h4 {font-size: 110%; margin-bottom: 5px;}
-    .endpoint-documentation pre {margin-top: 10px; margin-bottom: 10px;}
-    .endpoint-documentation ul {
-        list-style-type: circle;
-            margin-left: 20px;
-            padding: 0;
-    }
+        {{ MARKDOWN_CSS }}
     </style>
 
 </head>
@@ -52,7 +86,9 @@ DOC_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
         </div>
-
+        {% if description %}
+        <div class="markdown mb-5">{{ description }}</div>
+        {% endif %}
         {% for endpoint in endpoints %}
         <div class="border mb-5 p-2 ">
             <div class="flex flex-row text-2xl">
@@ -91,7 +127,7 @@ DOC_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
             </div>
-            <div id="endpoint-documentation-{{loop.index}}" class="endpoint-documentation mt-5 mx-1 hidden">{{endpoint.html_doc}}</div>
+            <div id="endpoint-documentation-{{loop.index}}" class="markdown endpoint-documentation mt-5 mx-1 hidden">{{endpoint.html_doc}}</div>
         </div>
         {% endfor %}
     </div>
@@ -129,7 +165,7 @@ DOC_TEMPLATE = """<!DOCTYPE html>
 </html>
 """
 
-
+from pathlib import Path
 
 def generate_documentation(router, **kwargs):
     endpoints = []
@@ -141,14 +177,39 @@ def generate_documentation(router, **kwargs):
             "html_doc": markdown.markdown(textwrap.dedent(resource.__doc__)) if resource.__doc__ else "<em>No documentation</em>"
         })
     title = kwargs.get("title") or "Documentation"
+    description = (markdown.markdown(kwargs.get("description"))
+                   if kwargs.get("description")
+                   else None)
     template = Environment(loader=BaseLoader()).from_string(DOC_TEMPLATE).render(
         endpoints=endpoints,
-        title=title
+        title=title,
+        description=description,
+        MARKDOWN_CSS=MARKDOWN_CSS
     )
-    filepath = kwargs.get("filepath")
-    if filepath is None:
-        os.makedirs("docs", exist_ok=True)
-        filepath = "docs/index.html"
+
+    basepath = Path(kwargs.get("basepath", "docs_html"))
+
+    if not basepath.exists():
+        os.makedirs(basepath.absolute(), exist_ok=True)
+
+    if not basepath.is_dir():
+        raise ValueError("basepath is not a directory")
+
+    for _extra_filepath in kwargs.get("extra", []):
+        fp = Path(_extra_filepath)
+        if not fp.exists():
+            raise ValueError(f"file {fp} does not exist")
+        with open(fp, 'r') as f:
+            html = Environment(loader=BaseLoader()).from_string(EXTRA_TEMPLATE).render(
+                content=markdown.markdown(f.read()),
+                MARKDOWN_CSS=MARKDOWN_CSS
+            )
+
+        with open(basepath / f"{fp.stem}.html", 'w') as f:
+            f.write(html)
+
+    filepath = basepath / kwargs.get("filename", "index.html")
+
     with open(filepath, "w") as f:
         # Writing data to file
         f.write(template)
