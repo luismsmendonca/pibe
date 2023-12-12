@@ -1,5 +1,7 @@
 from distutils.core import setup
 
+VERSION = "0.13"
+
 testing_extras = [
     "pytest",
     "coverage",
@@ -8,14 +10,15 @@ testing_extras = [
 
 setup(
     name="pibe",
-    py_modules=['pibe', 'pibe_docs'],
-    version="0.12",
+    py_modules=['pibe'],
+    packages=['pibe_ext'],
+    version=VERSION,
     license="MIT",
     description="pibe is a webob router.",
     author="Luis Mendonca",
     author_email="luismsmendonca@gmail.com",
     url="https://github.com/luismsmendonca/pibe",
-    download_url="https://github.com/luismsmendonca/pibe/archive/refs/tags/v0.12.tar.gz",
+    download_url=f"https://github.com/luismsmendonca/pibe/archive/refs/tags/v{VERSION}.tar.gz",
     keywords=["webob", "router"],
     install_requires=[
         "webob",

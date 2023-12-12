@@ -91,23 +91,27 @@ def template_to_string(template):
     return string
 
 
-class Middleware(list):
-    def __init__(self, middleware=None):
-        if middleware:
-            self.extend(middleware)
+class MiddlewareRegistry(object):
+    def __init__(self):
+        self.gen_fns = []
+        self.fns = []
+        super().__init__()
 
     def __call__(self):
         def func_decorator(func):
-            self.append(func)
+            print(inspect.isgeneratorfunction(func))
+            if inspect.isgeneratorfunction(func):
+                self.gen_fns.append(func)
+            else:
+                self.fns.append(func)
             return func
         return func_decorator
 
 
 class Router(list):
-    def __init__(self, middleware=None):
+    def __init__(self):
         self.names = dict()
-        self.error_handlers = list()
-        self.middleware = Middleware(middleware)
+        self.middleware = MiddlewareRegistry()
         super().__init__()
 
     def resolve(self, req):
@@ -127,23 +131,14 @@ class Router(list):
     def response_wrapper(self, resp, **opts):
         return resp
 
-    def error_handler(self):
-        def wrapper(func):
-            self.error_handlers.append(func)
-            return func
-        return wrapper
-
-    def exec_error_handlers(self, *args, **kwargs):
-        for func in self.error_handlers:
-            func(*args, **kwargs)
 
     @wsgify
     def application(self, req):
         (func, kwargs, opts) = self.resolve(req)
 
         # build the middleware
-        gen_mw = [mw(req, **opts) for mw in self.middleware if inspect.isgeneratorfunction(mw)]
-        func_mw = [mw for mw in self.middleware if not inspect.isgeneratorfunction(mw)]
+        gen_mw = [mw(req, **opts) for mw in self.middleware.gen_fns]
+        func_mw = [mw for mw in self.middleware.fns]
 
         # call the first leg
         for mw in func_mw:
@@ -153,11 +148,7 @@ class Router(list):
             next(mw)
 
         # call the function
-        try:
-            resp = func(req, **kwargs)
-        except Exception as err:
-            self.exec_error_handlers(req, err)
-            raise
+        resp = func(req, **kwargs)
 
         # reverse the middleware
         gen_mw.reverse()
