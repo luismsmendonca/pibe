@@ -32,5 +32,7 @@ class SettingsRegistry(SimpleNamespace):
     def get(self, *args):
         return self.__dict__.get(*args)
 
+    def set(self, key, value):
+        self.__dict__[key] = value
 
 settings = SettingsRegistry()
