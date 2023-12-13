@@ -99,7 +99,6 @@ class MiddlewareRegistry(object):
 
     def __call__(self):
         def func_decorator(func):
-            print(inspect.isgeneratorfunction(func))
             if inspect.isgeneratorfunction(func):
                 self.gen_fns.append(func)
             else:

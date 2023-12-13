@@ -3,7 +3,7 @@ from .http import http, no_content
 
 logger = logging.getLogger(__name__)
 
-__all__ = ("webhook_emit", "webhook_receive")
+__all__ = ("webhook",)
 
 
 class WebhookRegistry(dict):
@@ -35,5 +35,5 @@ class WebhookRegistry(dict):
             for rb_func in self.rollback_fns.get(wh_name, []):
                 rb_func(*args, **kwargs)
             raise
-                
+
 webhook = WebhookRegistry()

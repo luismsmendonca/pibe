@@ -158,7 +158,6 @@ def ordered(req, qs, **order_fns):
             qs = order_fns[field_name](req, qs, direction)
         else:
             field = getattr(qs.model, field_name)
-            print("field", field)
             if direction == "desc":
                 field = field.desc()
             qs = qs.order_by(field)
