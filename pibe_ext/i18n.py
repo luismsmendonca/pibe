@@ -21,7 +21,7 @@ def language_middleware(req, **opts):
     if language_code not in ["en", "pt_PT"]:
         expectation_failed(error="Invalid language requested.")
 
-    req.environ["language_code"] = language_code
+    req.language_code = language_code
     g.language_code = language_code
 
     if language_code == "en":

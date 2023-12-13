@@ -14,6 +14,11 @@ from playhouse.shortcuts import model_to_dict, dict_to_model
 from .http import *
 from .db import *
 
+from functools import reduce
+import operator
+
+is_str = fn.isa(str)
+
 __all__ = (
     "model_serializer",
     "get_object_or_404",
@@ -131,21 +136,84 @@ def paginated(req, qs, paginate_by=15, max_paginate_by=100):
 VALUE_CONVERSION = {"true": True, "false": False, "none": None}
 
 
-def filtered(req, qs, fields=None, **filter_fns):
+
+@fn.memoize
+def get_model_fields(model_class):
+    return [f for f in model_class._meta.fields.keys()]
+
+
+def filtered(req, qs, allowed_fields=None, omit_fields=None, expr_fns=None, **fns):
+
     params = req.params.mixed()
+
     filters = dict(
         fn.lmap(
             lambda x: (fn.cut_prefix(x[0], "filter__"), x[1]),
             fn.filter(lambda x: x[0].startswith("filter__"), fn.iteritems(params)),
         )
     )
+
     if filters:
-        fn.walk_values(
-            lambda v: VALUE_CONVERSION.get(v, v) if fn.isa(str)(v) else v, filters
-        )
-        qs = qs.filter(**fn.omit(filters, filter_fns.keys()))
-        for key in fn.project(filters, filter_fns.keys()):
-            qs = filter_fns[key](req, qs, filters[key])
+        model_class = qs.model
+        model_fields = get_model_fields(model_class)
+
+        if allowed_fields:
+            model_fields = [f for f in model_fields if f in allowed_fields]
+
+        if omit_fields:
+            model_fields = [f for f in model_fields if f not in omit_fields]
+
+        expr_fns = expr_fns or {}
+
+        _expr_list = []
+
+        for fkey, value in filters.items():
+            tokens = fkey.split("__")
+
+            if len(tokens) == 1:
+                field = tokens[0]
+                op = "eq"
+            elif len(tokens) == 2:
+                field = tokens[0]
+                op = tokens[1]
+
+            # coerce values
+            if op in ["in", "not_in"]:
+                value = value if fn.is_list(value) else [value]
+            elif is_str(value):
+                value = VALUE_CONVERSION.get(value, value)
+
+            print(field, op, value)
+
+            if field in fns:
+                qs = fns[field](req, qs, value)
+                continue
+
+            if field in expr_fns:
+                _expr_list.append(expr_fns[field](value))
+                continue
+
+            if field not in model_fields:
+                bad_request(error=f"field {field} not filterable")
+
+            if op == "eq":
+                _expr_list.append(getattr(model_class, field) == value)
+            elif op == "in":
+                _expr_list.append(getattr(model_class, field).in_(value))
+            elif op == "not_in":
+                _expr_list.append(getattr(model_class, field).not_in(value))
+            elif op == "is_null":
+                # FIXME assert boolean
+                _expr_list.append(getattr(model_class, field).is_null(value))
+            elif op == "contains":
+                _expr_list.append(getattr(model_class, field).contains(value))
+            else:
+                bad_request(error=f"field: {field} unknown operation: {op}")
+
+        if _expr_list:
+            qs = qs.where(reduce(operator.and_, _expr_list))
+
+
     return qs
 
 
@@ -177,13 +245,14 @@ def object_list(
     qs,
     serializer=None,
     key_name=None,
-    filter_fns=None,
+    filter_kwargs=None,
     order_fns=None,
     paginate_by=15,
     max_paginate_by=100,
+
 ):
     serializer = serializer or qs.model.serializer()
-    qs = filtered(req, qs, **(filter_fns or {}))
+    qs = filtered(req, qs, **(filter_kwargs or {}))
     qs = ordered(req, qs, **(order_fns or {}))
     (qs, pagination) = paginated(
         req, qs, paginate_by=paginate_by, max_paginate_by=max_paginate_by

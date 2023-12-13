@@ -134,7 +134,8 @@ class Router(list):
     @wsgify
     def application(self, req):
         (func, kwargs, opts) = self.resolve(req)
-
+        req.opts = opts
+        
         # build the middleware
         gen_mw = [mw(req, **opts) for mw in self.middleware.gen_fns]
         func_mw = [mw for mw in self.middleware.fns]

@@ -22,6 +22,7 @@ __all__ = (
     "not_acceptable",
     "unprocessable_entity",
     "expectation_failed",
+    "bad_gateway",
     "is_json",
     "no_content",
     "created",
@@ -101,6 +102,11 @@ def unprocessable_entity(**kwargs):
 
 def expectation_failed(**kwargs):
     _raise_exc(exc.HTTPExpectationFailed, _default_error="Expectation Failed", **kwargs)
+
+
+def bad_gateway(**kwargs):
+    _raise_exc(exc.HTTPBadGateway, _default_error="Bad Gateway", **kwargs)
+
 
 
 @fn.decorator

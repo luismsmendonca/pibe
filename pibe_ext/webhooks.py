@@ -27,7 +27,7 @@ class WebhookRegistry(dict):
 
         return func_decorator
 
-    def __call__(self, wh_name, *args, **kwargs):
+    def commit(self, wh_name, *args, **kwargs):
         try:
             for func in self.get(wh_name, []):
                 func(*args, **kwargs)
