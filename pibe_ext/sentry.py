@@ -19,7 +19,7 @@ def init_sentry(**opts):
                 )
             ],
         )
-        if settings.sentry_tags:
+        if settings.get("sentry_tags"):
             for k, v in settings.sentry_tags.items():
                 sentry_sdk.set_tag(k, v)
 

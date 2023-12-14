@@ -2,6 +2,7 @@ import funcy as fn
 from webob import exc
 from json.decoder import JSONDecodeError
 import cerberus
+from box import Box
 
 from .http import _raise_exc, not_acceptable
 
@@ -18,12 +19,12 @@ def validate(
 
     if data_source == "json_body":
         try:
-            data = call.req.json
+            data = dict(call.req.json)
         except JSONDecodeError:
             not_acceptable(error="Invalid JSON Request")
 
     elif data_source == "params":
-        data = call.req.params
+        data = dict(call.req.params)
     else:
         raise KeyError("unknown data source")
 
@@ -31,6 +32,6 @@ def validate(
     if not v.validate(data):
         _raise_exc(exception_class, errors=v.errors)
 
-    call.req.data = v.document
+    call.req.data = Box(v.document)
 
     return call()
