@@ -24,6 +24,19 @@ parse_kwargs = lambda args, **defaults: dict(
 )
 
 
+class DotDict(dict):
+    """
+    a dictionary that supports dot notation
+    as well as dictionary access notation
+    usage: d = DotDict() or d = DotDict({'val1':'first'})
+    set attributes: d.val2 = 'second' or d['val2'] = 'second'
+    get attributes: d.val2 or d['val2']
+    """
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+
 def int_converter(**kwargs):
     signed = kwargs.get("signed") in ["true", "1"]
     length = kwargs.get("length")
@@ -91,18 +104,10 @@ def template_to_string(template):
     return string
 
 
-class MiddlewareRegistry(object):
-    def __init__(self):
-        self.gen_fns = []
-        self.fns = []
-        super().__init__()
-
+class CallbackRegistry(list):
     def __call__(self):
         def func_decorator(func):
-            if inspect.isgeneratorfunction(func):
-                self.gen_fns.append(func)
-            else:
-                self.fns.append(func)
+            self.append(func)
             return func
         return func_decorator
 
@@ -110,7 +115,8 @@ class MiddlewareRegistry(object):
 class Router(list):
     def __init__(self):
         self.names = dict()
-        self.middleware = MiddlewareRegistry()
+        self.before_request = CallbackRegistry()
+        self.after_request = CallbackRegistry()
         super().__init__()
 
     def resolve(self, req):
@@ -130,32 +136,21 @@ class Router(list):
     def response_wrapper(self, resp, **opts):
         return resp
 
-
     @wsgify
     def application(self, req):
         (func, kwargs, opts) = self.resolve(req)
-        req.opts = opts
-        
-        # build the middleware
-        gen_mw = [mw(req, **opts) for mw in self.middleware.gen_fns]
-        func_mw = [mw for mw in self.middleware.fns]
+        req.opts = DotDict(opts)
 
-        # call the first leg
-        for mw in func_mw:
-            mw(req, **opts)
-
-        for mw in gen_mw:
-            next(mw)
+        # call the before request functions
+        for f in self.before_request:
+            f(req)
 
         # call the function
         resp = func(req, **kwargs)
 
-        # reverse the middleware
-        gen_mw.reverse()
-
-        # call the second leg of the middleware
-        for mw in gen_mw:
-            mw.send(resp)
+        # call the after request functions
+        for f in self.after_request:
+            f(req)
 
         # finally return response
         return self.response_wrapper(resp, **opts)

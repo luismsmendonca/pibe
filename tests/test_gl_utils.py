@@ -1,6 +1,6 @@
 
 import gevent
-from gl_utils import *
+from pibe_ext.gl_utils import *
 from unittest.mock import Mock
 
 def test_decorator():

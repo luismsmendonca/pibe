@@ -28,38 +28,8 @@ __all__ = (
     "created",
 )
 
-class ExtRouter(JSONRouter):
-    initialize_fns = []
-    wsgi_middleware_fns = []
 
-    def initialize(self):
-        def func_decorator(func):
-            self.initialize_fns.append(func)
-            return func
-        return func_decorator
-
-    def wsgi_middleware(self):
-        def func_decorator(func):
-            self.wsgi_middleware_fns.append(func)
-            return func
-        return func_decorator
-
-    def make_app(self, **opts):
-        if opts.get("initialize", True) == True:
-            settings.initialize(**opts)
-
-            for init_func in self.initialize_fns:
-                init_func(**opts)
-
-        _app = self.application
-
-        if opts.get("install_middleware", True) == True:
-            for mw_fn in self.wsgi_middleware_fns:
-                _app = mw_fn(_app, **opts)
-
-        return _app
-
-http = ExtRouter()
+http = JSONRouter()
 pibe.regex_fn["shortuuid"] = r"[2-9A-HJ-NP-Za-km-z]{22}"
 
 

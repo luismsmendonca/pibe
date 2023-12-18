@@ -2,7 +2,8 @@ import funcy as fn
 from webob import exc
 from json.decoder import JSONDecodeError
 import cerberus
-from box import Box
+from pibe import DotDict
+
 
 from .http import _raise_exc, not_acceptable
 
@@ -32,6 +33,6 @@ def validate(
     if not v.validate(data):
         _raise_exc(exception_class, errors=v.errors)
 
-    call.req.data = Box(v.document)
+    call.req.data = DotDict(v.document)
 
     return call()

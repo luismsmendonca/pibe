@@ -6,7 +6,7 @@ __all__ = ("g", )
 g = local()
 
 
-@http.middleware()
+@http.before_request()
 def gevent_local_session_middleware(req, **opts):
     # populates the session object with the incoming request
     g.request = req

@@ -16,9 +16,9 @@ except ImportError:
 
 
 from .settings import settings
-from .crud import model_serializer
+from .serializer import model_serializer
 # from .init import init
-from .http import http
+from .appconfig import appconfig
 
 
 
@@ -79,28 +79,7 @@ def get_model_class(class_name):
     raise ValueError("No model with class {}".format(class_name))
 
 
-@http.initialize()
-def initialize_database(**opts):
-    """Initialization method for the database.
 
-    db is a Proxy object for the peewee database. This way it needs to be
-    initialized. If connection fails it will issue a system exit.
-
-    """
-    db_url = opts.get("db_url")
-    db_obj = connect(db_url or settings.database_url)
-    database.initialize(db_obj)
-
-    database.connect()
-    database.close()
-    try:
-        database.connect()
-        database.close()
-    except:
-        logger.error("Error connecting to database", exc_info=True)
-        sys.exit(1)
-
-    return db_obj
 
 
 @fn.decorator
@@ -138,8 +117,30 @@ def database_middleware(req, app):
             database.close()
     return resp
 
+@appconfig.initialize()
+def initialize_database(**opts):
+    """Initialization method for the database.
 
-@http.wsgi_middleware()
+    db is a Proxy object for the peewee database. This way it needs to be
+    initialized. If connection fails it will issue a system exit.
+
+    """
+    db_url = opts.get("db_url")
+    db_obj = connect(db_url or settings.database_url)
+    database.initialize(db_obj)
+
+    database.connect()
+    database.close()
+    try:
+        database.connect()
+        database.close()
+    except:
+        logger.error("Error connecting to database", exc_info=True)
+        sys.exit(1)
+
+    return db_obj
+
+@appconfig.wsgi_middleware()
 def add_database_middleware(application, **opts):
     if opts.get("database_middleware", True) == True:
         application = database_middleware(application)

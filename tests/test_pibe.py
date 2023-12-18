@@ -215,36 +215,38 @@ def test_json_router():
     assert resp.json == {"foo": "bar"}
 
 
-def test_middleware():
+def test_before_request():
 
     route1 = pibe.Router()
-    route1_2 = pibe.Router()
-    assert id(route1.middleware) != id(route1_2.middleware)
 
-    @route1.middleware()
-    def middleware1(req, **opts):
+    # assert id(route1.before_request) != id(route1_2.before_request)
+
+    @route1.before_request()
+    def before_request1(req):
         if req.path == "/foo":
-            assert "foo" in opts
-            assert "bar" not in opts
+            assert "foo" in req.opts
+            assert "bar" not in req.opts
 
         elif req.path == "/bar":
-            assert "bar" in opts
-            assert "foo" not in opts
+            assert "bar" in req.opts
+            assert "foo" not in req.opts
 
         elif req.path == "/dummy":
-            assert "bar" not in opts
-            assert "foo" not in opts
+            assert "bar" not in req.opts
+            assert "foo" not in req.opts
 
         else:
             assert 0
 
-    assert len(route1.middleware.fns) == 1
+    assert len(route1.before_request) == 1
     route1.get("/foo", foo=True)(MagicMock(return_value="ok"))
     route1.get("/bar", bar=True)(MagicMock(return_value="ok"))
     route1.get("/dummy")(MagicMock(return_value="ok"))
+
     app = TestApp(route1.application)
 
     resp = app.get("/foo")
+
     assert resp.status_code == 200
     assert resp.text == "ok"
 
@@ -256,16 +258,16 @@ def test_middleware():
     assert resp.status_code == 200
     assert resp.text == "ok"
 
-def test_middleware2():
+def test_before_request_error():
 
     route2 = pibe.Router()
 
-    @route2.middleware()
-    def middleware_gen2(req, **opts):
+    @route2.before_request()
+    def before_request2(req, **opts):
         raise exc.HTTPNotFound
-        yield
 
-    assert len(route2.middleware.gen_fns) == 1
+
+    assert len(route2.before_request) == 1
     route2.get("/", foo=True)(MagicMock(return_value="ok"))
     app = TestApp(route2.application)
 
@@ -273,18 +275,30 @@ def test_middleware2():
     assert resp.status_code == 404
 
 
-def test_middleware3():
+def test_after_request_error():
 
     route3 = pibe.Router()
 
-    @route3.middleware()
-    def middleware_gen3(req, **opts):
-        yield
+    @route3.after_request()
+    def after_request3(req, **opts):
         raise exc.HTTPNotFound
 
-    assert len(route3.middleware.gen_fns) == 1
+    assert len(route3.after_request) == 1
     route3.get("/", foo=True)(MagicMock(return_value="ok"))
     app = TestApp(route3.application)
 
     resp = app.get("/", expect_errors=True)
     assert resp.status_code == 404
+
+
+
+def test_opts():
+    route = pibe.Router()
+    def home(req):
+        assert req.opts.foo == "bar"
+        return "OK"
+    route.get("/", foo="bar")(home)
+
+    app = TestApp(route.application)
+    resp = app.get("/")
+    assert resp.status_code == 200

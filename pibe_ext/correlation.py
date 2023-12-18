@@ -11,7 +11,7 @@ def get_correlation_id(req):
         or str(uuid.uuid4())
     )
 
-@http.middleware()
+@http.before_request()
 def correlation_middleware(req, **opts):
     correlation_id = get_correlation_id(req)
     req.environ["correlation_id"] = correlation_id

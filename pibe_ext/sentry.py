@@ -1,5 +1,6 @@
 import logging
 from .settings import settings
+from .appconfig import appconfig
 from .http import http
 from .session import g
 
@@ -8,7 +9,7 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.wsgi import SentryWsgiMiddleware
 
 
-@http.initialize()
+@appconfig.initialize()
 def init_sentry(**opts):
     if opts.get("use_sentry", True):
         sentry_sdk.init(
@@ -24,14 +25,14 @@ def init_sentry(**opts):
                 sentry_sdk.set_tag(k, v)
 
 
-@http.wsgi_middleware()
+@appconfig.wsgi_middleware()
 def sentry_wsgi_middleware(application, **opts):
     if opts.get("use_sentry", True):
         return SentryWsgiMiddleware(application)
     return application
 
 
-@http.middleware()
+@http.before_request()
 def sentry_middleware(req, **opts):
     if opts.get("use_sentry", True):
         sentry_sdk.set_tag("correlation_id", g.correlation_id)
