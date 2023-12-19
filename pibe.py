@@ -68,6 +68,7 @@ regex_fn = {
     "float": float_converter,
     "any": lambda *a: r"|".join(a),
     "re": lambda regexp: regexp,
+    "shortuuid": r"[2-9A-HJ-NP-Za-km-z]{22}",
 }
 
 
