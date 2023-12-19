@@ -37,6 +37,7 @@ class DotDict(dict):
     __delattr__ = dict.__delitem__
 
 
+
 def int_converter(**kwargs):
     signed = kwargs.get("signed") in ["true", "1"]
     length = kwargs.get("length")

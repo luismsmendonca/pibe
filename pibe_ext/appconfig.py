@@ -8,7 +8,7 @@ from pibe_ext.settings import settings
 __all__ = ("appconfig",)
 
 
-class InitializationRegistry(list):
+class CallbackRegistry(list):
     def __call__(self):
         def func_decorator(func):
             self.append(func)
@@ -17,19 +17,18 @@ class InitializationRegistry(list):
 
 
 class AppConfig(object):
-    settings = InitializationRegistry()
-    initialize = InitializationRegistry()
-    wsgi_middleware = InitializationRegistry()
 
     def __init__(self):
         self.env = Env()
         self.env.read_env(os.environ.get("CONFIG_FILE", ".env"), recurse=False)
+        self.settings = CallbackRegistry()
+        self.initialize = CallbackRegistry()
+        self.wsgi_middleware = CallbackRegistry()
 
     def start_app(self, app, **opts):
-
         if opts.get("initialize", True) == True:
-            _settings = fn.merge(*[(f(**opts) or {}) for f in self.settings]) or {}
-            settings.__dict__.update(_settings)
+            settings.update(fn.merge(*[(f(**opts) or {}) for f in self.settings]) or {})
+
             for f in self.initialize:
                 f(**opts)
 

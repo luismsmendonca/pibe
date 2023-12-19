@@ -5,4 +5,4 @@ from pibe import DotDict
 
 __all__ = ("settings",)
 
-settings = DotDict({})
+settings = DotDict()
