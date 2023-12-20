@@ -52,11 +52,11 @@ def dict_merge(dct, merge_dct):
         else:
             dct[k] = merge_dct[k]
 
-def model_schema(model_class, fields=None, exclude=None, extra=None):
+def model_schema(model_class, fields=None, exclude=None, schema=None):
     fields = fields or model_class._meta.fields.keys()
     exclude = exclude or []
-    extra = extra or {}
-    schema = {}
+    schema = schema or {}
+    _schema = {}
 
     for name, field in model_class._meta.fields.items():
         if getattr(field, 'primary_key', False):
@@ -91,19 +91,19 @@ def model_schema(model_class, fields=None, exclude=None, extra=None):
         coerce = COERCE_MAP.get(field_type)
         if coerce:
             field_schema["coerce"] = coerce
-        schema[name] = field_schema
-    dict_merge(schema, extra)
-    return schema
+        _schema[name] = field_schema
+    dict_merge(_schema, schema)
+    return _schema
 
 
 def model_validate(model_class,
     exception_class=exc.HTTPBadRequest,
     fields=None,
     exclude=None,
-    extra=None,
+    schema=None,
     **kwargs):
 
-    schema = model_schema(model_class, fields=fields, exclude=exclude, extra=extra)
+    _schema = model_schema(model_class, fields=fields, exclude=exclude, schema=schema)
 
     def _deco(func):
         @fn.wraps(func)
@@ -113,7 +113,7 @@ def model_validate(model_class,
             except JSONDecodeError:
                 not_acceptable(error="Invalid JSON Request")
 
-            v = cerberus.Validator(schema, **kwargs)
+            v = cerberus.Validator(_schema, **kwargs)
             if not v.validate(data):
                 _raise_exc(exception_class, errors=v.errors)
 
