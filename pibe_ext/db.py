@@ -117,6 +117,7 @@ def database_middleware(req, app):
             database.close()
     return resp
 
+
 @appconfig.initialize()
 def initialize_database(**opts):
     """Initialization method for the database.
@@ -139,6 +140,7 @@ def initialize_database(**opts):
         sys.exit(1)
 
     return db_obj
+
 
 @appconfig.wsgi_middleware()
 def add_database_middleware(application, **opts):

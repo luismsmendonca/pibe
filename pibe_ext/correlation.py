@@ -12,7 +12,7 @@ def get_correlation_id(req):
     )
 
 @http.before_request()
-def correlation_middleware(req, **opts):
+def correlation_middleware(req):
     correlation_id = get_correlation_id(req)
     req.environ["correlation_id"] = correlation_id
     g.correlation_id = correlation_id

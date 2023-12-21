@@ -3,14 +3,14 @@ import msgpack
 from walrus import *
 from .settings import settings
 
-__all__ = ("cache_db", "cache", "evict")
+__all__ = ("rdb", "cache", "evict")
 
 is_str = fn.isa(str)
 
 
 @fn.LazyObject
-def cache_db():
-    return Walrus(
+def rdb():
+    return Database(
         host=settings.redis_host,
         port=settings.redis_port,
         db=settings.redis_db
@@ -32,14 +32,14 @@ def cache(call, *, key=None, evict_keys=None):
         )
     )
     key = f"catalog:cache:{key}"
-    resp = cache_db.get(key)
+    resp = rdb.get(key)
     if resp:
         return msgpack.unpackb(resp, raw=False)
 
-    lock = cache_db.lock(key, ttl=settings.cache_lock_duration)
+    lock = rdb.lock(key, ttl=settings.cache_lock_duration)
     with lock:
         resp = call()
-        cache_db[key] = msgpack.packb(resp, use_bin_type=True)
+        rdb[key] = msgpack.packb(resp, use_bin_type=True)
         evict_keys = (
             evict_keys
             if fn.is_list(evict_keys)
@@ -51,7 +51,7 @@ def cache(call, *, key=None, evict_keys=None):
         )
         evict_keys = [ek.format(**call._kwargs) for ek in evict_keys]
         for evict_key in evict_keys:
-            cache_set = cache_db.Set(f"catalog:eviction:{evict_key}")
+            cache_set = rdb.Set(f"catalog:eviction:{evict_key}")
             cache_set.add(key)
 
     return resp
@@ -63,8 +63,8 @@ def evict(call, *evict_keys):
     for evict_key in evict_keys:
         evict_key = evict_key(call) if callable(evict_key) else evict_key
         evict_key = evict_key.format(**call._kwargs)
-        cache_set = cache_db.Set(f"catalog:eviction:{evict_key}")
+        cache_set = rdb.Set(f"catalog:eviction:{evict_key}")
         for key in cache_set.members():
-            cache_db.delete(key)
+            rdb.delete(key)
         cache_set.clear()
     return resp

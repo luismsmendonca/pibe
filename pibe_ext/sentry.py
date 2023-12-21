@@ -11,7 +11,7 @@ from sentry_sdk.integrations.wsgi import SentryWsgiMiddleware
 
 @appconfig.initialize()
 def init_sentry(**opts):
-    if opts.get("use_sentry", True):
+    if settings.use_sentry:
         sentry_sdk.init(
             dsn=settings.sentry_dsn,
             integrations=[
@@ -27,12 +27,12 @@ def init_sentry(**opts):
 
 @appconfig.wsgi_middleware()
 def sentry_wsgi_middleware(application, **opts):
-    if opts.get("use_sentry", True):
+    if settings.use_sentry:
         return SentryWsgiMiddleware(application)
     return application
 
 
 @http.before_request()
-def sentry_middleware(req, **opts):
-    if opts.get("use_sentry", True):
+def sentry_middleware(req):
+    if settings.use_sentry:
         sentry_sdk.set_tag("correlation_id", g.correlation_id)

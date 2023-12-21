@@ -13,7 +13,7 @@ def get_language(language_code):
 
 
 @http.before_request()
-def language_middleware(req, **opts):
+def language_middleware(req):
     language_code = (
         req.headers.get("X-Language-Code") or req.params.get("language_code") or "en"
     )

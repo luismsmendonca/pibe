@@ -1,4 +1,5 @@
 from pibe_ext.appconfig import *
+from pibe_ext.redis import *
 from pibe_ext.cache import *
 from pibe_ext.correlation import *
 from pibe_ext.crud import *
