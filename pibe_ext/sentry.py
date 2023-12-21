@@ -35,4 +35,4 @@ def sentry_wsgi_middleware(application, **opts):
 @http.before_request()
 def sentry_middleware(req):
     if settings.use_sentry:
-        sentry_sdk.set_tag("correlation_id", g.correlation_id)
+        sentry_sdk.set_tag("correlation_id", req.correlation_id)
