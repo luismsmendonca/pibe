@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-VERSION = "0.24"
+VERSION = "0.25"
 
 testing_extras = [
     "pytest",
