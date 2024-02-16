@@ -40,7 +40,7 @@ __all__ = (
 database = pw.Proxy()
 
 
-class Model(pw.Model):
+class Model(SignalModel):
     class Meta:
         database = database
 
