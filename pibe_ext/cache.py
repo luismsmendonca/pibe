@@ -1,19 +1,30 @@
 import funcy as fn
 import msgpack
 from walrus import *
+from .appconfig import appconfig
 from .settings import settings
 
-__all__ = ("rdb", "cache", "evict")
+__all__ = ("cachedb", "cache", "evict")
 
 is_str = fn.isa(str)
 
 
+@appconfig.settings()
+def cache_settings(**opts):
+    return {
+        "cache_host": appconfig.env.str("REDIS_HOST", "localhost"),
+        "cache_port": appconfig.env.int("REDIS_PORT", 6379),
+        "cache_db": appconfig.env.int("CACHE_DB", 0),
+        "cache_lock_duration": appconfig.env.int("CACHE_LOCK_DURATION", 500),  # in milliseconds
+    }
+
+
 @fn.LazyObject
-def rdb():
+def cachedb():
     return Database(
-        host=settings.redis_host,
-        port=settings.redis_port,
-        db=settings.redis_db
+        host=settings.cache_host,
+        port=settings.cache_port,
+        db=settings.cache_db
     )
 
 
@@ -32,14 +43,14 @@ def cache(call, *, key=None, evict_keys=None):
         )
     )
     key = f"catalog:cache:{key}"
-    resp = rdb.get(key)
+    resp = cachedb.get(key)
     if resp:
         return msgpack.unpackb(resp, raw=False)
 
-    lock = rdb.lock(key, ttl=settings.cache_lock_duration)
+    lock = cachedb.lock(key, ttl=settings.cache_lock_duration)
     with lock:
         resp = call()
-        rdb[key] = msgpack.packb(resp, use_bin_type=True)
+        cachedb[key] = msgpack.packb(resp, use_bin_type=True)
         evict_keys = (
             evict_keys
             if fn.is_list(evict_keys)
@@ -51,7 +62,7 @@ def cache(call, *, key=None, evict_keys=None):
         )
         evict_keys = [ek.format(**call._kwargs) for ek in evict_keys]
         for evict_key in evict_keys:
-            cache_set = rdb.Set(f"catalog:eviction:{evict_key}")
+            cache_set = cachedb.Set(f"catalog:eviction:{evict_key}")
             cache_set.add(key)
 
     return resp
@@ -63,8 +74,8 @@ def evict(call, *evict_keys):
     for evict_key in evict_keys:
         evict_key = evict_key(call) if callable(evict_key) else evict_key
         evict_key = evict_key.format(**call._kwargs)
-        cache_set = rdb.Set(f"catalog:eviction:{evict_key}")
+        cache_set = cachedb.Set(f"catalog:eviction:{evict_key}")
         for key in cache_set.members():
-            rdb.delete(key)
+            cachedb.delete(key)
         cache_set.clear()
     return resp

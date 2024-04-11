@@ -9,8 +9,17 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.wsgi import SentryWsgiMiddleware
 
 
+@appconfig.settings()
+def sentry_settings(**opts):
+    return {
+        "use_sentry": appconfig.env.bool("USE_SENTRY", False),
+        "sentry_dsn": appconfig.env("SENTRY_DSN", None),
+    }
+
+
+
 @appconfig.initialize()
-def init_sentry(**opts):
+def initialize_sentry(**opts):
     if settings.use_sentry:
         sentry_sdk.init(
             dsn=settings.sentry_dsn,

@@ -25,16 +25,45 @@ class AppConfig(object):
         self.initialize = CallbackRegistry()
         self.wsgi_middleware = CallbackRegistry()
 
+    def _get_funcs(self, registry, **opts):
+        funcs = [f for f in registry]
+
+        only_fns = opts.get("only", [])
+        if only_fns:
+            funcs = [f for f in funcs if f.__name__ in only_fns]
+
+        exclude_fns = opts.get("exclude", [])
+        funcs = [f for f in funcs if f.__name__ not in exclude_fns]
+        return funcs
+
+    def init_settings(self, **opts):
+
+        funcs = self._get_funcs(self.settings, **opts)
+
+        if opts.get("dump_funcs", True):
+            print("Collecting settings from {}".format(", ".join([f.__name__ for f in funcs])))
+
+        settings.update(fn.merge(*[(f(**opts) or {}) for f in funcs]) or {})
+
+    def init(self, **opts):
+        if opts.get("initialize_settings", True):
+            self.init_settings(**opts)
+
+        funcs = self._get_funcs(self.initialize, **opts)
+
+        if opts.get("dump_funcs", True):
+            print("Initializing {}".format(", ".join([f.__name__ for f in funcs])))
+
+        for func in funcs:
+            func(**opts)
+
     def start_app(self, app, **opts):
         if opts.get("initialize", True) == True:
-            settings.update(fn.merge(*[(f(**opts) or {}) for f in self.settings]) or {})
-
-            for f in self.initialize:
-                f(**opts)
+            self.init(**opts)
 
         if opts.get("install_middleware", True) == True:
-            for f in self.wsgi_middleware:
-                app = f(app, **opts)
+            for func in self.wsgi_middleware:
+                app = func(app, **opts)
 
         return app
 

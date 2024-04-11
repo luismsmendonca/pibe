@@ -22,6 +22,8 @@ from .appconfig import appconfig
 
 
 
+
+
 logger = logging.getLogger(__name__)
 
 __all__ = (
@@ -38,6 +40,13 @@ __all__ = (
 
 
 database = pw.Proxy()
+
+
+@appconfig.settings()
+def database_settings(**opts):
+    return {
+        "database_url": appconfig.env.str("DATABASE_URL", "sqlite:///database.db"),
+    }
 
 
 class Model(SignalModel):
