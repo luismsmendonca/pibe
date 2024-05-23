@@ -4,9 +4,36 @@ from pibe_ext.http import http, no_content
 
 logger = logging.getLogger(__name__)
 
-__all__ = ("rpc",)
+__all__ = ("rpc",
+        "JSONRPCParseError", "JSONRPCInvalidRequest", "JSONRPCMethodNotFound",
+        "JSONRPCInvalidParams", "JSONRPCInternalError", "JSONRPCServerError",
+)
 
 # https://www.jsonrpc.org/specification
+
+class JSONRPCException(Exception):
+
+    def __init__(self, message):
+        self.message = message
+
+class JSONRPCParseError(JSONRPCException):
+    code = -32700
+
+class JSONRPCInvalidRequest(JSONRPCException):
+    code = -32600
+
+class JSONRPCMethodNotFound(JSONRPCException):
+    code = -32601
+
+class JSONRPCInvalidParams(JSONRPCException):
+    code = -32601
+
+class JSONRPCInternalError(JSONRPCException):
+    code = -32603
+
+class JSONRPCServerError(JSONRPCException):
+    code = -32000
+
 
 class RPCRegistry(dict):
     def __call__(self, method_name=None):
@@ -53,6 +80,8 @@ def process_rpc(req):
 
     try:
         resp["result"] = rpc[rpc_method](*args, **kwargs)
+    except JSONRPCException as exc:
+        resp["error"] = {"code": exc.code, "message": exc.message}
     except:
         logger.exception(f"RPC Server Error while executing rpc method: {rpc_method}", exc_info=True)
         resp["error"] = {"code": -32000, "message": "Server Error"}
