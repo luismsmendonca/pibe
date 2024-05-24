@@ -13,8 +13,9 @@ __all__ = ("rpc",
 
 class JSONRPCException(Exception):
 
-    def __init__(self, message):
-        self.message = message
+    def __init__(self, message=None, data=None):
+        self.message = message or "Error"
+        self.data = data or {}
 
 class JSONRPCParseError(JSONRPCException):
     code = -32700
@@ -26,13 +27,17 @@ class JSONRPCMethodNotFound(JSONRPCException):
     code = -32601
 
 class JSONRPCInvalidParams(JSONRPCException):
-    code = -32601
+    code = -32602
 
 class JSONRPCInternalError(JSONRPCException):
     code = -32603
 
 class JSONRPCServerError(JSONRPCException):
-    code = -32000
+    def __init__(self, code=-32000, **kw):
+        if not (-32099 >= code >= -32000):
+            raise ValueError("Server error Code has to be between -32000 and -32099")
+        self.code = code
+        super().__init__(**kw)
 
 
 class RPCRegistry(dict):
@@ -72,7 +77,7 @@ def process_rpc(req):
 
     func = rpc.get(rpc_method)
     if not func:
-        resp["error"] = {"code": -32601, "message": "Method not found"}
+        resp["error"] = {"code": -32601, "message": "Method not found", "data": {}}
         return resp
 
     args = rpc_params if type(rpc_params) == list else []
@@ -81,9 +86,9 @@ def process_rpc(req):
     try:
         resp["result"] = rpc[rpc_method](*args, **kwargs)
     except JSONRPCException as exc:
-        resp["error"] = {"code": exc.code, "message": exc.message}
+        resp["error"] = {"code": exc.code, "message": exc.message, "data": exc.data}
     except:
         logger.exception(f"RPC Server Error while executing rpc method: {rpc_method}", exc_info=True)
-        resp["error"] = {"code": -32000, "message": "Server Error"}
+        resp["error"] = {"code": -32603, "message": "Internal error", "data": {}}
 
     return resp
