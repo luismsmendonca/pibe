@@ -34,8 +34,8 @@ class JSONRPCInternalError(JSONRPCException):
 
 class JSONRPCServerError(JSONRPCException):
     def __init__(self, code=-32000, **kw):
-        if not (-32099 >= code >= -32000):
-            raise ValueError("Server error Code has to be between -32000 and -32099")
+        if not (code >= -32099 and code <= -32000):
+            raise ValueError(f"Server error Code {code} has to be between -32000 and -32099")
         self.code = code
         super().__init__(**kw)
 
