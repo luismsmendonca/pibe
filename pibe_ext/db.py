@@ -8,8 +8,6 @@ from webob.dec import wsgify
 
 try:
     import peewee as pw
-    from playhouse.db_url import connect
-    from playhouse.shortcuts import model_to_dict, dict_to_model
     from playhouse.signals import Model as SignalModel
 except ImportError:
     raise ImportError("peewee has to be installed to use the db extension")
@@ -17,11 +15,7 @@ except ImportError:
 
 from .settings import settings
 from .serializer import model_serializer
-# from .init import init
 from .appconfig import appconfig
-
-
-
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +25,6 @@ __all__ = (
     "Model",
     "db_models",
     "get_model_class",
-    "initialize_database",
     "synchronize_database",
     "database_middleware",
     "db_connect",
@@ -40,14 +33,6 @@ __all__ = (
 
 
 database = pw.Proxy()
-
-
-@appconfig.settings()
-def database_settings(**opts):
-    return {
-        "database_url": appconfig.env.str("DATABASE_URL", "sqlite:///database.db"),
-    }
-
 
 class Model(SignalModel):
     class Meta:
@@ -88,9 +73,6 @@ def get_model_class(class_name):
     raise ValueError("No model with class {}".format(class_name))
 
 
-
-
-
 @fn.decorator
 def db_connect(call):
     database.connect(reuse_if_open=True)
@@ -125,30 +107,6 @@ def database_middleware(req, app):
         if not database.is_closed():
             database.close()
     return resp
-
-
-@appconfig.initialize()
-def initialize_database(**opts):
-    """Initialization method for the database.
-
-    db is a Proxy object for the peewee database. This way it needs to be
-    initialized. If connection fails it will issue a system exit.
-
-    """
-    db_url = opts.get("db_url")
-    db_obj = connect(db_url or settings.database_url)
-    database.initialize(db_obj)
-
-    database.connect()
-    database.close()
-    try:
-        database.connect()
-        database.close()
-    except:
-        logger.error("Error connecting to database", exc_info=True)
-        sys.exit(1)
-
-    return db_obj
 
 
 @appconfig.wsgi_middleware()

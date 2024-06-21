@@ -37,12 +37,7 @@ class AppConfig(object):
         return funcs
 
     def init_settings(self, **opts):
-
         funcs = self._get_funcs(self.settings, **opts)
-
-        if opts.get("dump_funcs", True):
-            print("Collecting settings from {}".format(", ".join([f.__name__ for f in funcs])))
-
         settings.update(fn.merge(*[(f(**opts) or {}) for f in funcs]) or {})
 
     def init(self, **opts):
@@ -50,10 +45,6 @@ class AppConfig(object):
             self.init_settings(**opts)
 
         funcs = self._get_funcs(self.initialize, **opts)
-
-        if opts.get("dump_funcs", True):
-            print("Initializing {}".format(", ".join([f.__name__ for f in funcs])))
-
         for func in funcs:
             func(**opts)
 
