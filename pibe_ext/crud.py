@@ -17,6 +17,7 @@ from .db import *
 from functools import reduce
 import operator
 
+from .serializer import get_serializer
 is_str = fn.isa(str)
 
 __all__ = (
@@ -178,21 +179,21 @@ def skimmed(req, qs, serializer):
 def object_list(
     req,
     qs,
-    serializer=None,
     key_name=None,
     filter_kwargs=None,
     order_fns=None,
     paginate_by=15,
     max_paginate_by=100,
-
+    serializer=None,
 ):
-    serializer = serializer or qs.model.serializer()
+    serializer = serializer or get_serializer(qs.model)
     qs = filtered(req, qs, **(filter_kwargs or {}))
     qs = ordered(req, qs, **(order_fns or {}))
     (qs, pagination) = paginated(
         req, qs, paginate_by=paginate_by, max_paginate_by=max_paginate_by
     )
     key_name = key_name or f"{qs.model.__name__.lower()}_list"
+    
     return {key_name: skimmed(req, qs, serializer), "pagination": pagination}
 
 

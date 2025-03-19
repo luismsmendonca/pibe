@@ -1,3 +1,5 @@
+import importlib
+
 class lazy_object(object):
     """
     Create a proxy or placeholder for another object.
@@ -63,3 +65,19 @@ class lazy_object(object):
     def __setitem__(self, key, value):
         self._check_and_initialize(self)
         return self.obj.__setitem__(key, value)
+
+
+
+
+def import_fn(dotted_path: str):
+    """
+    Import an object using a dotted import path.
+    Example: import_fn("app.serializers.user_serializer")
+    will return the user_serializer object from app/serializers.py.
+    """
+    module_path, _, attr = dotted_path.rpartition(".")
+    module = importlib.import_module(module_path)
+    obj = getattr(module, attr, None)
+    if obj is None:
+        raise ImportError(f"No object found at {dotted_path}")
+    return obj

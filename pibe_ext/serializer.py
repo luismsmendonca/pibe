@@ -1,14 +1,37 @@
 import funcy as fn
 import peewee as pw
+from gevent.local import local
 
+from .http import http
+
+
+session_serializers = local()
 
 __all__ = (
+    "set_serializer",
+    "get_serializer",
     "model_serializer",
 )
 
+@http.before_request()
+def setup_session_serializers(req)  :
+    session_serializers.registry = {}
+
+@http.after_request()
+def cleanup_session_serializers(req):
+    session_serializers.registry = None
+
+
+def set_serializer(model_name, serializer_fn):
+    session_serializers.registry[model_name] = serializer_fn
+
+
+def get_serializer(model_class, *args, **kwargs):
+    return session_serializers.registry.get(model_class.__name__, model_class.serializer(*args, **kwargs))
+
 
 def model_serializer(
-    model_class, fields=None, follow_m2m=True, exclude=None, extra=None, **serializers
+    model_class, fields=None, follow_m2m=True, exclude=None, extra=None, **extra_serializers
 ):
     fields = fields or model_class._meta.fields.keys()
     if extra:
@@ -32,13 +55,11 @@ def model_serializer(
             if field.__class__ in (pw.DateField, pw.DateTimeField):
                 return getattr(obj, field_name).isoformat()
             elif field.__class__ == pw.ForeignKeyField:
-                return model_serializer(field.rel_model, follow_m2m=False)(
-                    getattr(obj, field_name)
-                )
+                serializer_fn = get_serializer(field.rel_model, follow_m2m=False)
+                return serializer_fn(getattr(obj, field_name))
             elif field.__class__ == pw.ManyToManyField:
-                return model_serializer(field.rel_model, follow_m2m=False)(
-                    getattr(obj, field_name)
-                )
+                serializer_fn = get_serializer(field.rel_model, follow_m2m=False)
+                return [serializer_fn(item) for item in getattr(obj, field_name)]
             elif field.__class__ == pw.DecimalField:
                 return str(getattr(obj, field_name))
 
@@ -53,15 +74,15 @@ def model_serializer(
             fields,
         )
     )
-    serializers = fn.merge(defaults, serializers)
+    _serializers = fn.merge(defaults, extra_serializers)
 
     def object_serializer(obj, project=None, omit=None):
-        fields = serializers.keys()
+        fields = _serializers.keys()
         if project:
             fields = fields & project
         if omit:
             fields = fields - omit
-        return dict([(f, serializers[f](obj)) for f in fields])
+        return dict([(f, _serializers[f](obj)) for f in fields])
 
     def inner(qs, project=None, omit=None, **_fields):
         if isinstance(qs, pw.Model):

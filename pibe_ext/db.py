@@ -1,6 +1,7 @@
 import sys
 import json
 import logging
+
 from functools import partial
 import funcy as fn
 
@@ -16,7 +17,7 @@ except ImportError:
 from .settings import settings
 from .serializer import model_serializer
 from .appconfig import appconfig
-
+from .utils import import_fn
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +35,25 @@ __all__ = (
 
 database = pw.Proxy()
 
+
+
 class Model(SignalModel):
     class Meta:
         database = database
 
     @classmethod
     def serializer(cls, *a, **kw):
+        _serializer = getattr(cls, "_serializer", None)
+        if _serializer:
+            if type(_serializer) == str:
+                try:
+                    return import_fn(_serializer)
+                except ImportError:
+                    raise ImportError("No serializer found for model {}".format(cls.__name__))                
+            else:
+                return _serializer
         return model_serializer(cls, *a, **kw)
+
 
     @classmethod
     def get_or_none(cls, *a, **kw):
